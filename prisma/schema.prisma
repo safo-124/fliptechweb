@@ -1,0 +1,215 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL") // Comes from your .env.local file
+}
+
+model User {
+  id        String   @id @default(cuid()) // Unique ID
+  email     String   @unique // Email for login, must be unique
+  password  String   // Hashed password
+  name      String?  // Full name, optional
+
+  role      UserRole @default(CUSTOMER) // Role: ADMIN, ARTISAN, CUSTOMER
+  phoneNumber String?  @unique // Make unique if required, or just indexed
+  nationalId  String?  @unique // Make unique if required, or just indexed
+  // Relations to listings created by this user (if artisan)
+  productsListed        ProductListing[] @relation("ArtisanProducts")
+  servicesOffered       ServiceListing[] @relation("ArtisanServices")
+  trainingOffersProvided TrainingOffer[]  @relation("ArtisanTrainingOffers")
+
+  isActive  Boolean  @default(true)    // To manage if user account is active
+  lastLogin DateTime?                 // To help track active users
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- Future relationships (examples) ---
+  // artisanProfile ArtisanProfile?
+  // orders         Order[]
+  // reviewsGiven   Review[]        @relation("ReviewsByUser")
+  // reviewsReceived Review[]       @relation("ReviewsForArtisan")
+  // paymentsMade   Payment[]       @relation("PaymentsByUser")
+  // paymentsReceived Payment[]     @relation("PaymentsToArtisan")
+}
+
+enum UserRole {
+  ADMIN
+  ARTISAN
+  CUSTOMER
+}
+
+enum CategoryType {
+  PRODUCT
+  SERVICE
+  TRAINING
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique // Consider making this unique per type/parent if needed
+  slug        String  @unique
+  description String?
+  type        CategoryType
+
+  parentId    String?
+  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subCategories Category[] @relation("SubCategories")
+
+  // Relations to listings under this category
+  products          ProductListing[] @relation("CategoryProducts")
+  services          ServiceListing[] @relation("CategoryServices")
+  trainingOffers    TrainingOffer[]  @relation("CategoryTrainingOffers")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([parentId])
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  INACTIVE
+  REJECTED
+  ARCHIVED
+}
+
+model ProductListing {
+  id            String   @id @default(cuid())
+  title         String
+  description   String   @db.Text
+  price         Decimal  @db.Decimal(10, 2) // Example: 10 digits total, 2 decimal places
+  currency      String   @default("GHS")
+
+  images        Json     @default("[]") // Changed from String[] to Json, default is an empty JSON array
+  materials     Json     @default("[]") // Changed from String[] to Json
+  
+  stockQuantity Int?
+  dimensions    String?
+  sku           String?  @unique
+
+  shippingDetails String?  @db.Text
+
+  status        ListingStatus @default(DRAFT)
+
+  artisanId     String
+  artisan       User     @relation("ArtisanProducts", fields: [artisanId], references: [id], onDelete: Cascade)
+
+  categoryId    String
+  category      Category @relation("CategoryProducts", fields: [categoryId], references: [id], onDelete: Restrict)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([artisanId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+enum ServicePriceType {
+  FIXED
+  PER_HOUR
+  PER_DAY
+  CONTACT_FOR_QUOTE
+  PROJECT_BASED
+}
+
+enum ServiceLocationType {
+  ON_SITE
+  ARTISAN_LOCATION
+  REMOTE_ONLINE
+}
+
+model ServiceListing {
+  id            String   @id @default(cuid())
+  title         String
+  description   String   @db.Text
+  
+  priceType     ServicePriceType @default(CONTACT_FOR_QUOTE)
+  price         Decimal? @db.Decimal(10, 2)
+  priceUnit     String?
+  currency      String   @default("GHS")
+
+  images        Json     @default("[]") // Changed from String[] to Json
+
+  locationType  ServiceLocationType @default(ARTISAN_LOCATION)
+  serviceArea   String?
+  typicalDuration String?
+
+  status        ListingStatus @default(DRAFT)
+
+  artisanId     String
+  artisan       User     @relation("ArtisanServices", fields: [artisanId], references: [id], onDelete: Cascade)
+
+  categoryId    String
+  category      Category @relation("CategoryServices", fields: [categoryId], references: [id], onDelete: Restrict)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([artisanId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([priceType])
+  @@index([locationType])
+}
+
+model TrainingOffer {
+  id            String   @id @default(cuid())
+  title         String
+  description   String   @db.Text
+  
+  price         Decimal? @db.Decimal(10, 2)
+  currency      String   @default("GHS")
+  isFree        Boolean  @default(false)
+
+  images        Json     @default("[]") // Changed from String[] to Json
+
+  duration      String
+  scheduleDetails String? @db.Text
+  location      String
+  capacity      Int?
+  prerequisites String?  @db.Text
+  whatYouWillLearn Json  @default("[]") // Changed from String[] to Json
+
+  status        ListingStatus @default(DRAFT)
+
+  artisanId     String
+  artisan       User     @relation("ArtisanTrainingOffers", fields: [artisanId], references: [id], onDelete: Cascade)
+
+  categoryId    String
+  category      Category @relation("CategoryTrainingOffers", fields: [categoryId], references: [id], onDelete: Restrict)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([artisanId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([isFree])
+}
+
+// --- Placeholder for future Payment Model (as discussed previously, ensure Float is Decimal if needed) ---
+// model Payment {
+//   id        String   @id @default(cuid())
+//   amount    Decimal  @db.Decimal(10, 2) // Changed from Float to Decimal
+//   currency  String   @default("GHS")
+//   status    String   // e.g., PENDING, COMPLETED, FAILED
+//   userId    String
+//   user      User     @relation("PaymentsByUser", fields: [userId], references: [id])
+//   artisanId String
+//   artisan   User     @relation("PaymentsToArtisan", fields: [artisanId], references: [id])
+//   adminCut  Decimal  @db.Decimal(10, 2) // Changed from Float to Decimal
+//   type      String   // e.g., PRODUCT_PURCHASE, SERVICE_BOOKING, TRAINING_ENROLLMENT
+//   relatedItemId String 
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
