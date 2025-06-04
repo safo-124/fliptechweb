@@ -91,6 +91,7 @@ model ProductListing {
 
   images        Json     @default("[]") // Changed from String[] to Json, default is an empty JSON array
   materials     Json     @default("[]") // Changed from String[] to Json
+  rejectionReason String? @db.Text
   
   stockQuantity Int?
   dimensions    String?
@@ -132,6 +133,7 @@ model ServiceListing {
   id            String   @id @default(cuid())
   title         String
   description   String   @db.Text
+  rejectionReason String? @db.Text
   
   priceType     ServicePriceType @default(CONTACT_FOR_QUOTE)
   price         Decimal? @db.Decimal(10, 2)
