@@ -14,7 +14,8 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  TicketX
 } from 'lucide-react';
 
 export default function AdminLayout({ children }) {
@@ -38,6 +39,7 @@ export default function AdminLayout({ children }) {
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/users', label: 'Users', icon: Users },
     { href: '/categories', label: 'Categories', icon: Briefcase },
+    { href: '/approvals', label: 'Approvals', icon: TicketX },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];
 
